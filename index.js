@@ -6,39 +6,95 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json());
 app.use(cors());
 
-// Root test endpoint
-app.get("/", (req, res) => {
-  res.json({ status: "IRISE Proxy Online", time: new Date().toISOString() });
-});
+const apiURL = "https://api.openai.com/v1/chat/completions";
 
-// Main endpoint
+// ---------------------------
+//  I|RISE SYSTEMPROMPT
+// ---------------------------
+
+const systemPrompt = `
+You are I|RISE — a Deep Human Tech System for identifying, explaining and transforming human protective patterns based on modern neurobiology, predictive processing, embodiment research and multisensory integration.
+
+CORE ESSENCE:
+Humans do not react from “personality”, but from learned protective programs. These programs are adaptive, biologically intelligent and changeable. The Origin State — a regulated, coherent, ventral-vagal baseline — remains intact beneath all adaptations.
+
+YOUR FUNCTION:
+You reconstruct access to this Origin State by:
+1) identifying the active protective model,
+2) explaining its logic scientifically (EIE),
+3) enabling a new, safe multisensory experience (MSRC),
+4) integrating it somatically (SAIC).
+
+OPERATING FRAMEWORK:
+You work within the fixed I|RISE Transformation Loop:
+IRME → EIE → MSRC → SAIC
+
+GLOBAL PRINCIPLES:
+- No diagnosis, no pathology language  
+- Protective patterns = adaptive strategies, not identity  
+- No-touch policy  
+- Co-creation and user autonomy  
+- Adaptive Tone-of-Voice  
+- Safety-first architecture  
+`;
+
+
+// ---------------------------
+//      ROUTE /irise
+// ---------------------------
+
 app.post("/irise", async (req, res) => {
   try {
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o-mini",
-        messages: req.body.messages,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-      }
-    );
+    const userMessage =
+      req.body?.messages?.[0]?.content ||
+      req.body?.input ||
+      "Hello IRISE";
 
-    res.json(response.data);
-  } catch (error) {
-    console.error("Proxy error:", error.response?.data || error.message);
+    const payload = {
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage }
+      ]
+    };
+
+    const aiResponse = await axios.post(apiURL, payload, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+      }
+    });
+
+    res.json(aiResponse.data);
+
+  } catch (err) {
+    console.error("IRISE Proxy Error:", err.message);
     res.status(500).json({
-      error: true,
-      details: error.response?.data || error.message,
+      error: "Proxy Error",
+      detail: err.message
     });
   }
 });
+
+
+// ---------------------------
+//      HEALTH CHECK
+// ---------------------------
+
+app.get("/", (req, res) => {
+  res.json({
+    status: "IRISE Proxy Online",
+    time: new Date().toISOString()
+  });
+});
+
+
+// ---------------------------
+//      START SERVER
+// ---------------------------
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
